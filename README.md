@@ -69,7 +69,7 @@ The list is deliberately not reproduced here. Exact domains and wildcard syntax 
 
 A separate Application Control profile was attached to the restricted-user policy. Its intended social-media category rule was set to **block and log**, while unrelated and unknown application actions remained set to pass.
 
-**Outstanding check:** the source notes recorded category ID **23**, but its category mapping was not independently verified. That number must be confirmed in the device's actual application-category list before presenting the control as validated.
+**Category confirmed:** The device profile specifies `category 23`, `action block` and `log enable`. Fortinet's FortiOS 7.0 documentation identifies category **23 as Social.Media**. Other and unknown applications are set to pass. This verifies the configuration, not classification of every individual app.
 
 ### 3. QUIC policy below the exception
 
@@ -115,6 +115,10 @@ This is an **operator-confirmed functional result**, not a formal audit of every
 | Approved devices can access social media; other devices are blocked on the protected network | **Confirmed by administrator through functional testing** |
 | Older identity-based accept rules cannot bypass filtering | **Not fully evidenced** |
 | Alternative wireless interfaces are covered | **Requires separate verification** |
+
+### Compiled policy verification
+
+A read-only `diagnose firewall iprope list 100004` check confirmed that the MAC exception rule is installed with six MAC match entries, the QUIC rule is a UDP/443 drop, and the staff Internet rule is installed. This shows compiled policy logic, not live per-user policy hits.
 
 ## Limitations worth keeping visible
 
