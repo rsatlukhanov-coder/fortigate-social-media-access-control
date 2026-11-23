@@ -95,6 +95,16 @@ The notes also record clearing the **test device's existing sessions** when the 
 8. Expanded the static list to its final 49-entry set.
 9. Documented scope, residual risks, and rollback.
 
+## Results observed in production
+
+The administrator confirmed the intended access behavior after deployment:
+
+- **Approved MAC group:** devices registered in the exception group can access social-media services.
+- **Other devices on the protected office network:** social-media access is blocked.
+- **Policy matching:** a tested approved device was independently observed selecting the exception policy in the FortiGate session table.
+
+This is an **operator-confirmed functional result**, not a formal audit of every application, device type or possible bypass. No raw endpoint identifiers or session logs are published.
+
 ## What the evidence supports
 
 | Claim | Evidence |
@@ -102,7 +112,7 @@ The notes also record clearing the **test device's existing sessions** when the 
 | Approved test device matched the exception rule | Session table showed the exception policy ID |
 | Staff Internet policy had the Web Filter and Application Control attached | Firewall policy configuration |
 | Static URL table contained 49 entries | Configuration notes |
-| All blocked sites/apps fail on every phone and computer | **Not fully evidenced** |
+| Approved devices can access social media; other devices are blocked on the protected network | **Confirmed by administrator through functional testing** |
 | Older identity-based accept rules cannot bypass filtering | **Not fully evidenced** |
 | Alternative wireless interfaces are covered | **Requires separate verification** |
 
