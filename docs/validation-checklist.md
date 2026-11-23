@@ -1,11 +1,11 @@
 # Validation record and remaining work
 
-The table distinguishes observed evidence from outstanding tests.
+The table distinguishes administrator-reported functional tests, observed session data, and checks not yet supported by published evidence.
 
 | Scenario | Expected outcome | Evidence/status |
 | --- | --- | --- |
-| Test endpoint included in MAC exception group | Matches exception rule, Internet access allowed | **Observed:** session policy ID pointed to exception rule |
-| Non-exempt device visits a domain in static block list | Blocked by Web Filter if session reaches inspected policy | Not fully documented |
+| Test endpoint included in MAC exception group | Matches exception rule, social-media access allowed | **Observed:** exception policy ID in session table; administrator confirms social-media access |
+| Non-exempt device attempts a restricted social-media site | Blocked on the protected network | **Administrator confirms social-media blocking works for devices outside approved MAC group** |
 | Non-exempt device uses a social-media app | Blocked when recognized by Application Control | Not fully documented |
 | Non-exempt device attempts UDP/443 | Denied by QUIC policy | Rule configured; live hit evidence pending |
 | Non-exempt device visits permitted business website | Allowed | Not fully documented |
