@@ -14,6 +14,12 @@ The table distinguishes administrator-reported functional tests, observed sessio
 | Earlier user/group policies | No unintended bypass of inspected rule | Needs policy-hit review |
 | Other Wi-Fi interface or network segment | Protected by corresponding policy where intended | Needs path verification |
 
+## Verified configuration details
+
+- Category `23` is `Social.Media` according to Fortinet's FortiOS 7.0 documentation; configured action is block, with logging enabled.
+- The compiled rule table contains the six-device MAC exception, UDP/443 drop rule, and inspected staff policy.
+- These are configuration facts, not proof that every possible bypass has been tested.
+
 ## Suggested evidence to add
 
 For each test, note only:
@@ -28,8 +34,7 @@ Use redacted or fictional examples rather than pasting live firewall logs.
 
 ## Questions not yet answered
 
-1. Does the intended Application Control category correspond to the actual social-media signatures?
-2. Are older identity-based policies matching any current sessions?
-3. Does testing confirm blocking in mobile native apps, not just browsers?
-4. Are wireless clients on any other ingress interface outside this policy scope?
-5. Are any legitimate business sites impacted by overbroad wildcard matches?
+1. Are older identity-based policies matching any current sessions?
+2. Does testing confirm blocking in mobile native apps, not just browsers?
+3. Are wireless clients on any other ingress interface outside this policy scope?
+4. Are any legitimate business sites impacted by overbroad wildcard matches?
