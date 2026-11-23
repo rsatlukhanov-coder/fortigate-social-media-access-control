@@ -1,111 +1,125 @@
-# FortiGate: social media filtering with MAC-based exceptions
+# FortiGate — MAC-based exceptions and web/application filtering
 
-A firewall configuration case study from a small office environment. The requirement was straightforward: restrict social media for regular staff while keeping access available for a handful of approved devices. The difficult part was making the exception reliable without creating a rule that accidentally bypassed filtering for everyone else.
+A firewall administration case study: controlling recreational web traffic on an office Wi-Fi network without restricting a small group of approved devices.
 
-**Platform:** FortiGate 50G · FortiOS 7.0.17  
-**Management:** FortiGate GUI and CLI  
-**Focus:** Policy order, MAC address objects, Web Filter, Application Control, QUIC
+This write-up focuses on **what changed, why it changed, and how the result was checked**. It is not a copy of a production firewall configuration.
 
-> This is a sanitized write-up, not a deployable backup of a company firewall. Real addresses, device identifiers, user data and credentials are intentionally omitted.
+**Stack:** Fortinet FortiGate · FortiOS 7.x · UniFi wireless access points · Firewall Policies · Static URL Filter · Application Control
 
-## The requirement
+## The problem
 
-The office needed two different internet access behaviors:
+The requirement was to restrict social media, video streaming, adult content, gaming, and other non-work sites for staff using the office Wi-Fi. A small set of explicitly approved devices needed unrestricted access.
 
-- **Approved devices:** normal internet access, including social media, without the social-media Web Filter or Application Control restrictions.
-- **Other staff devices:** normal work-related browsing, but social-media sites and apps should be subject to the blocking profiles.
+Two constraints shaped the implementation:
 
-The restriction was intended for both laptops/desktops and mobile devices. Whether a particular device is actually covered depends on which firewall interface its traffic enters.
+1. **FortiGuard web categorization was unavailable** in the environment. Using the built-in category labels alone would not provide the expected protection.
+2. Filtering had to **exclude selected devices without changing unrelated server, VPN, or WAN rules**.
 
-## What I configured
+The approach was to use a static domain list for web filtering, an application signature category for additional coverage, and a MAC-based exception rule placed before the restricted-user rules.
 
-The work used a **MAC address group** for the approved endpoints and separate policies for the exception, QUIC traffic, and the remaining staff internet access.
+## What was implemented
 
-The following is the policy logic observed in the configuration. Names are intentionally simplified; the IDs are included to make the troubleshooting narrative easier to follow.
+| Control | Implementation | Reason |
+| --- | --- | --- |
+| Approved devices | MAC address objects grouped into an allowlist | Clear exception for specific endpoints |
+| Web filtering | Static URL filter containing **49 entries** | FortiGuard category service unavailable |
+| Application filtering | Application Control profile with a social-media category block | Supplement domain-based filtering |
+| QUIC handling | UDP/443 deny for non-exempt clients | Encourage compatible clients to fall back to inspectable TCP/443 |
+| Firewall policy | Separate allowlist, QUIC-deny and restricted-internet rules | First-match policy evaluation keeps exceptions above restrictions |
+| HTTPS inspection | Certificate inspection | Domain/SNI visibility without deploying a local CA to endpoints |
 
-| Policy ID | Purpose | Matching condition | Result |
-| --- | --- | --- | --- |
-| **40** | Approved-device exception | Source MAC in approved group | Allow; no social-media inspection profiles |
-| **41** | QUIC restriction | Remaining traffic using UDP/443 | Deny |
-| **13 / 14** | Older user/group rules | Matching authenticated identity | Allow without these profiles; potential bypass |
-| **31** | Default staff internet rule | Staff LAN traffic not matched above | Allow with Web Filter + Application Control |
-
-The critical detail is **rule order**, not the numeric policy ID. FortiGate evaluates policies from top to bottom and selects the first match for a new session.
-
-### Why policy 40 is above the filtering policy
-
-An approved device should match policy 40 *before* it gets to the QUIC deny and social-media filtering rules. That rule has an ACCEPT action and intentionally has no social-media Web Filter or Application Control profile. The absence of these profiles is part of the exception design.
-
-An unlisted device does **not** get blocked simply because its MAC address is missing. It fails to match policy 40 and is evaluated against the next policies.
+### Policy flow
 
 ```mermaid
 flowchart TD
-    A["New session from staff LAN"] --> B{"Source matches approved MAC group?"}
-    B -- Yes --> C["Policy 40: ACCEPT\nNo social-media filters"]
+    A["New session from office Wi-Fi"] --> B{"Device matches approved MAC group?"}
+    B -- Yes --> C["Exception rule: ACCEPT\nNo social-media filtering profiles"]
     B -- No --> D{"UDP/443?"}
-    D -- Yes --> E["Policy 41: DENY"]
-    D -- No --> F{"Older user/group policy matches?"}
-    F -- Yes --> G["Earlier ACCEPT rule\nReview possible filtering bypass"]
-    F -- No --> H["Policy 31: ACCEPT + security profiles"]
-    H --> I{"Site or application blocked by profile?"}
-    I -- Yes --> J["Blocked"]
-    I -- No --> K["Allowed"]
+    D -- Yes --> E["Deny QUIC/HTTP3 transport"]
+    D -- No --> F{"Existing identity-based allow rule matches?"}
+    F -- Yes --> G["May bypass filtering: review required"]
+    F -- No --> H["Staff Internet rule: ACCEPT\nStatic URL Filter + Application Control"]
+    H --> I{"Blocked domain or application?"}
+    I -- Yes --> J["BLOCK"]
+    I -- No --> K["ALLOW"]
 ```
 
-## Why I added the UDP/443 rule
+**Important:** a device that is absent from the MAC allowlist is not automatically blocked from the Internet. It continues through the remaining policies. Filtering occurs only if the session reaches the policy with the inspection profiles.
 
-Modern browsers and apps may use **QUIC / HTTP/3** over UDP port 443 rather than HTTPS over TCP port 443.
+## Configuration decisions
 
-For clients that are *not* on the exception list, the UDP/443 deny rule can force compatible clients to try TCP/443 instead. The Web Filter and Application Control on the later staff policy can then evaluate the resulting traffic according to their configured capabilities.
+### 1. Static URL filtering instead of FortiGuard categories
 
-This is **not** a universal social-media block. UDP/443 denial affects more than social media, and some applications may not fall back cleanly. The actual filtering decision still depends on application signatures, categorization, inspection settings and which firewall policy matches.
+The initial licensing/status check showed that the web-rating service was disabled. I therefore created a **separate** URL filter table and attached it through a dedicated Web Filter profile rather than modifying existing filters.
 
-## Troubleshooting notes
+The table contained **49 entries** across five content groups:
 
-### 1. A rule named “Block” does not necessarily block social media
+| Group | Entries |
+| --- | ---: |
+| Social platforms | 10 |
+| Video platforms | 5 |
+| Adult sites | 15 |
+| Gaming platforms | 15 |
+| Entertainment / time-wasting sites | 4 |
+| **Total** | **49** |
 
-Two older, identity-based ACCEPT rules appear before the filtered staff internet policy. Neither has the social-media filtering profiles attached. If a connection matches one of these rules, it will not reach policy 31.
+The list is deliberately not reproduced here. Exact domains and wildcard syntax should be reviewed for false positives and incomplete coverage. A static list never replaces a maintained category reputation service.
 
-**Follow-up:** Review their intended purpose, identify actual hits and remove any unintended bypass through an approved change. I have not marked this as resolved.
+### 2. Application Control as a second layer
 
-### 2. Wired LAN and wireless traffic may take different paths
+A separate Application Control profile was attached to the restricted-user policy. Its intended social-media category rule was set to **block and log**, while unrelated and unknown application actions remained set to pass.
 
-The documented exception and filtering policies apply to one LAN-to-WAN path. A separate wireless-to-internet policy exists without these profiles. Mobile device coverage therefore needs its own route/interface verification and, if appropriate, equivalent controls.
+**Outstanding check:** the source notes recorded category ID **23**, but its category mapping was not independently verified. That number must be confirmed in the device's actual application-category list before presenting the control as validated.
 
-**Follow-up:** Verify ingress interface, NAT behavior and MAC visibility on wireless clients before asserting that every phone is filtered.
+### 3. QUIC policy below the exception
 
-### 3. MAC matching is convenient, but not strong authentication
+Web filtering of modern web applications can be affected by QUIC / HTTP/3 on UDP port 443. A dedicated deny rule was added **below the approved-device exception** so the exception could still pass that traffic, while non-exempt devices would often fall back to HTTPS over TCP.
 
-A laptop's Ethernet and Wi-Fi adapters have different MAC addresses. Phones may use private/randomized MAC addresses. MACs can also be spoofed.
+This decision trades some application performance/compatibility for more consistent inspection opportunities. Denying UDP/443 alone does not block social media.
 
-**Follow-up:** Confirm policy hits with a test device and consider authenticated device/user controls for stronger assurance.
+### 4. Validate the exception using session policy IDs
 
-## What has been checked
+After applying the exception, new sessions from a test endpoint were checked in the FortiGate session table. The session was observed hitting the **exception policy**. This is stronger evidence than relying only on the position or name of the rule.
 
-| Item | Evidence / current status |
+The notes also record clearing the **test device's existing sessions** when the inspection profile was attached, so the test would use the new policy path.
+
+## Implementation sequence
+
+1. Reviewed system status, interfaces, firewall policies, web-filter configuration, DHCP and licensing.
+2. Determined that FortiGuard category filtering was unavailable and selected static URL filtering.
+3. Created a new static URL table and a separate Web Filter profile without touching the older profiles.
+4. Created a test MAC object, allowlist group, and higher-priority exception policy.
+5. Checked live session information to verify that the test device matched the exception rule.
+6. Attached the static URL Web Filter profile to the general staff Internet rule.
+7. Added the Application Control profile and a separate UDP/443 deny policy.
+8. Expanded the static list to its final 49-entry set.
+9. Documented scope, residual risks, and rollback.
+
+## What the evidence supports
+
+| Claim | Evidence |
 | --- | --- |
-| Exception policy (40), QUIC deny (41), filtered staff policy (31) | Present in the supplied FortiGate CLI output |
-| Approved-device access | Reported working during administration; traffic-log evidence not yet added |
-| Full social-media blocking for other staff | Not yet independently documented |
-| Older identity-rule bypass | Identified for review |
-| Phone / separate Wi-Fi path coverage | Still requires testing |
+| Approved test device matched the exception rule | Session table showed the exception policy ID |
+| Staff Internet policy had the Web Filter and Application Control attached | Firewall policy configuration |
+| Static URL table contained 49 entries | Configuration notes |
+| All blocked sites/apps fail on every phone and computer | **Not fully evidenced** |
+| Older identity-based accept rules cannot bypass filtering | **Not fully evidenced** |
+| Alternative wireless interfaces are covered | **Requires separate verification** |
 
-I prefer to record **“not verified”** rather than claim complete enforcement without logs or repeatable endpoint tests.
+## Limitations worth keeping visible
 
-## Repository contents
+- HTTPS **certificate inspection** does not reveal full encrypted URLs or content; domain/SNI-based decisions have limits.
+- A fixed domain list misses newly created or unlisted domains. Some shared infrastructure domains may cause collateral blocking.
+- MAC addresses are not strong identities. Private/randomized Wi-Fi MAC behavior can change allowlist matching.
+- External VPNs, mobile data and other alternative paths can bypass this particular firewall path.
+- Earlier identity-based ACCEPT policies without inspection profiles may bypass filtering if they match.
+- Blocking UDP/443 can reduce performance or break HTTP/3-only behavior in some apps.
 
-- [Policy configuration breakdown](docs/policy-design.md) — how each rule affects traffic
-- [Validation checklist](docs/validation-checklist.md) — repeatable tests for approved and ordinary endpoints
-- [Policy logic example](examples/policy-logic.txt) — non-executable, sanitized illustration
-- [Security and publishing notes](SECURITY.md) — what should never be published from a production firewall
+## Project files
 
-## Next improvements
+- [Configuration decisions and CLI verification](docs/policy-design.md)
+- [Test matrix and open verification points](docs/validation-checklist.md)
+- [Safe, non-executable policy sketch](examples/policy-logic.txt)
+- [Publication / confidentiality rules](SECURITY.md)
 
-- Capture redacted policy-hit results from a test session.
-- Verify browser **and native app** behavior on one approved and one non-approved device.
-- Review legacy user/group rules for filtering bypass.
-- Confirm separate Wi-Fi policy coverage and private MAC behavior.
-
----
-
-*Portfolio case study. Any screenshots and evidence added later will be redacted and published only with the organization's permission.*
+**Scope note:** This repository is a redacted case study. It intentionally excludes the company name, people, MAC addresses, IP addresses, hostnames, topology details, raw logs, credentials, backups, and screenshots.
