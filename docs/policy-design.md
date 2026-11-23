@@ -30,7 +30,7 @@ Some entries used wildcard matches. These require careful validation: a wildcard
 
 The restricted policy also used an Application Control profile intended to block the social-media category and log matched applications. Other and unknown application actions were set to pass.
 
-**Unverified:** the field notes referenced category identifier 23, but the mapping had not been checked against the device's category listing. Validate its actual meaning in the local FortiOS build before claiming that all intended apps are blocked.
+**Category confirmed against Fortinet's FortiOS 7.0 documentation:** `category 23` corresponds to **Social.Media**. The actual profile has `action block`, `log enable`, and pass for other/unknown applications. This does not prove identification of every social media app.
 
 ### QUIC
 
@@ -74,3 +74,14 @@ Changes were limited to the intended staff Internet traffic path; unrelated serv
 - Do not use broad session clears or policy deletions without confirming impact.
 
 Because actual production policy identifiers are intentionally omitted, this public document does not provide a copy/paste production rollback script.
+
+## Compiled policy validation
+
+Read-only `diagnose firewall iprope list 100004` output confirmed:
+
+- MAC exception rule compiled as ACCEPT with six source MAC entries.
+- QUIC rule compiled as DROP for UDP destination port 443.
+- Staff Internet rule compiled and present, with the relevant security profiles attached in its firewall configuration.
+- Older identity-based ACCEPT policies are still installed and may warrant a hit-count review.
+
+This output does not establish live policy-hit behavior for each client.
