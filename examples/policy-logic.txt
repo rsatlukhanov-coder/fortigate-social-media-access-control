@@ -1,28 +1,34 @@
-ILLUSTRATIVE POLICY LOGIC — NOT AN EXECUTABLE CONFIGURATION
+SANITIZED FIREWALL POLICY LOGIC
+================================
+Educational sketch only. Not executable CLI. No production identifiers.
 
-Staff LAN -> WAN
+FIRST-MATCH ORDER FOR PROTECTED STAFF INTERNET PATH
 
-1. MAC EXCEPTION POLICY
-   Source: APPROVED_DEVICE_MACS
+A) EXCEPTION
+   Source: APPROVED_MAC_GROUP
+   Destination: Internet
    Service: ALL
-   Action: ACCEPT
-   Web Filter: social-media filter not applied
-   Application Control: social-media filter not applied
+   Action: ACCEPT, NAT as needed
+   Social-media inspection profiles: not attached
 
-2. QUIC POLICY
-   Source: all remaining LAN devices
-   Service: UDP/443
+B) QUIC CONTROL
+   Source: any device not already matched
+   Destination: Internet
+   Service: UDP destination port 443
    Action: DENY
 
-3. LEGACY USER/GROUP ACCEPT POLICIES
-   Risk: can bypass intended filtering if matched first.
-   Must be reviewed.
+C) PRE-EXISTING IDENTITY-BASED ALLOW RULES
+   If a rule matches here, the inspected staff rule is bypassed.
+   Assess rule hits and intended purpose before making changes.
 
-4. STAFF INTERNET POLICY
+D) INSPECTED STAFF INTERNET
    Source: staff subnet
+   Destination: Internet
    Service: ALL
    Action: ACCEPT
-   Web Filter: social-media blocking profile
-   Application Control: social-media blocking profile
+   Web Filter: static URL table, 49 intended block entries
+   Application Control: intended social-media application block
+   SSL: certificate inspection
 
-Separate wireless ingress interfaces require separate evaluation.
+Not included: actual source MAC addresses, interface names, subnets,
+usernames, policy identifiers, company identifiers and exact domain list.
