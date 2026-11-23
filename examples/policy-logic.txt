@@ -1,0 +1,28 @@
+ILLUSTRATIVE POLICY LOGIC — NOT AN EXECUTABLE CONFIGURATION
+
+Staff LAN -> WAN
+
+1. MAC EXCEPTION POLICY
+   Source: APPROVED_DEVICE_MACS
+   Service: ALL
+   Action: ACCEPT
+   Web Filter: social-media filter not applied
+   Application Control: social-media filter not applied
+
+2. QUIC POLICY
+   Source: all remaining LAN devices
+   Service: UDP/443
+   Action: DENY
+
+3. LEGACY USER/GROUP ACCEPT POLICIES
+   Risk: can bypass intended filtering if matched first.
+   Must be reviewed.
+
+4. STAFF INTERNET POLICY
+   Source: staff subnet
+   Service: ALL
+   Action: ACCEPT
+   Web Filter: social-media blocking profile
+   Application Control: social-media blocking profile
+
+Separate wireless ingress interfaces require separate evaluation.
