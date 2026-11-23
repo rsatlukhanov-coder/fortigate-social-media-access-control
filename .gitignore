@@ -1,0 +1,11 @@
+*.bak
+*.backup
+*.log
+*.pcap
+*.pcapng
+*.key
+*.pem
+.env
+secrets/
+production/
+backups/
