@@ -1,12 +1,21 @@
-# Security and responsible publishing
+# Responsible documentation and publication
 
-This repository is deliberately anonymized. Do **not** upload:
-- Actual firewall configuration backups or unredacted CLI exports
-- Real MAC addresses, public or internal IP inventories, network diagrams, hostnames, internal DNS names, usernames
-- Device serial numbers, policy UUIDs, VPN information or authentication secrets
-- `ENC` values, passwords, API tokens, private keys, configuration archives
-- Unredacted traffic logs or screenshots
+This is a sanitized portfolio project, not a production configuration repository.
 
-Publishing even sanitized information learned at work may require employer permission. Keep sensitive findings in approved internal reporting channels.
+**Do not publish any of the following:**
+- Organization or employee names, identifying labels and user accounts
+- Internal or public IP addresses, subnets, network topology, access-point counts or device locations
+- MAC addresses, hostnames, hardware serial numbers, policy UUIDs and raw device inventories
+- WAN management settings, VPN architecture, authentication methods, secrets, encrypted password blobs or configuration backups
+- Raw DHCP leases, session records, traffic logs or unredacted GUI/CLI screenshots
+- Configuration files that could be imported into the organization's live firewall
 
-**MAC allowlisting is not strong identity assurance:** a MAC address can be spoofed.
+Information derived from a workplace deployment may require company approval even after sanitization.
+
+If evidence is later added, use a staged review:
+1. Prepare screenshots or logs offline.
+2. Redact sensitive details and metadata.
+3. Confirm the remaining material does not reveal the internal environment.
+4. Publish only with appropriate authorization.
+
+MAC address allowlisting is not strong authentication; device identity can be spoofed.
